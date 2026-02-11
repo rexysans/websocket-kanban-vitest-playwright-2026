@@ -19,6 +19,19 @@ const io = new Server(server, {
 // In-memory task storage
 let tasks = [];
 
+
+
+
+
+app.get("/health", (req, res) => {
+  res.json({ message: "OK" });
+});
+
+
+
+
+
+
 // Helper function to validate task data
 const validateTask = (task) => {
   if (!task.title || typeof task.title !== 'string') {
