@@ -8,9 +8,7 @@ function TaskCard({ task, onEdit, onDelete }) {
 
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this task?')) {
-      onDelete(task.id);
-    }
+    onDelete(task);
   };
 
   return (

@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import Column from './Column';
 import TaskForm from './TaskForm';
 import TaskCard from './TaskCard';
+import ConfirmationModal from './ConfirmationModal';
 
 function KanbanBoard({ socket, tasks, loading, error }) {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [selectedColumn, setSelectedColumn] = useState('todo');
   const [activeId, setActiveId] = useState(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState({ isOpen: false, taskId: null, taskTitle: '' });
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -29,19 +31,33 @@ function KanbanBoard({ socket, tasks, loading, error }) {
     setShowTaskForm(true);
   };
 
-  const handleDeleteTask = (taskId) => {
-    if (socket) {
-      socket.emit('task:delete', taskId);
+  const handleDeleteRequest = (task) => {
+    setDeleteConfirmation({
+      isOpen: true,
+      taskId: task.id,
+      taskTitle: task.title
+    });
+  };
+
+  const handleDeleteConfirm = () => {
+    if (socket && deleteConfirmation.taskId) {
+      console.log('🗑️ Deleting task:', deleteConfirmation.taskId);
+      socket.emit('task:delete', deleteConfirmation.taskId);
     }
+    setDeleteConfirmation({ isOpen: false, taskId: null, taskTitle: '' });
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteConfirmation({ isOpen: false, taskId: null, taskTitle: '' });
   };
 
   const handleFormSubmit = (taskData) => {
     if (socket) {
       if (editingTask) {
-        // Update existing task
+        console.log('✏️ Updating task:', taskData.id);
         socket.emit('task:update', taskData);
       } else {
-        // Create new task
+        console.log('➕ Creating task:', taskData.title);
         socket.emit('task:create', taskData);
       }
     }
@@ -56,11 +72,7 @@ function KanbanBoard({ socket, tasks, loading, error }) {
 
   const handleDragStart = (event) => {
     setActiveId(event.active.id);
-  };
-
-  const handleDragOver = (event) => {
-    // We'll handle the actual move in handleDragEnd
-    // This just provides visual feedback
+    console.log('🎯 Drag started:', event.active.id);
   };
 
   const handleDragEnd = (event) => {
@@ -68,22 +80,30 @@ function KanbanBoard({ socket, tasks, loading, error }) {
     
     setActiveId(null);
 
-    if (!over) return;
+    if (!over) {
+      console.log('⚠️ Dropped outside droppable area');
+      return;
+    }
 
     const activeId = active.id;
     const overId = over.id;
 
     const task = tasks.find(t => t.id === activeId);
-    if (!task) return;
+    if (!task) {
+      console.log('⚠️ Task not found:', activeId);
+      return;
+    }
 
     // Check if we dropped on a column
     const columns = ['todo', 'inProgress', 'done'];
     if (columns.includes(overId) && task.status !== overId) {
-      // Emit task move to server - server will broadcast the update
+      console.log(`🚀 Moving task ${task.title} from ${task.status} to ${overId}`);
+      
       if (socket) {
-        console.log(`Moving task ${activeId} to ${overId}`);
         socket.emit('task:move', { id: activeId, status: overId });
       }
+    } else {
+      console.log('ℹ️ No move needed - same column or invalid drop target');
     }
   };
 
@@ -115,7 +135,6 @@ function KanbanBoard({ socket, tasks, loading, error }) {
         sensors={sensors}
         collisionDetection={closestCorners}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
         <div className="kanban-columns">
@@ -124,21 +143,21 @@ function KanbanBoard({ socket, tasks, loading, error }) {
             tasks={getTasksByStatus('todo')}
             onAddTask={handleAddTask}
             onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
+            onDeleteTask={handleDeleteRequest}
           />
           <Column
             status="inProgress"
             tasks={getTasksByStatus('inProgress')}
             onAddTask={handleAddTask}
             onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
+            onDeleteTask={handleDeleteRequest}
           />
           <Column
             status="done"
             tasks={getTasksByStatus('done')}
             onAddTask={handleAddTask}
             onEditTask={handleEditTask}
-            onDeleteTask={handleDeleteTask}
+            onDeleteTask={handleDeleteRequest}
           />
         </div>
 
@@ -159,6 +178,14 @@ function KanbanBoard({ socket, tasks, loading, error }) {
           columnStatus={selectedColumn}
         />
       )}
+
+      <ConfirmationModal
+        isOpen={deleteConfirmation.isOpen}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        title="🗑️ Delete Task"
+        message={`Are you sure you want to delete "${deleteConfirmation.taskTitle}"? This action cannot be undone.`}
+      />
     </div>
   );
 }
