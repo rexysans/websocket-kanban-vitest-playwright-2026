@@ -3,39 +3,20 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import KanbanBoard from "../../components/KanbanBoard";
 
-// Mock socket.io-client with more detailed implementation
-const mockEmit = vi.fn();
-const eventHandlers = {};
-
-const mockSocket = {
-  on: vi.fn((event, handler) => {
-    eventHandlers[event] = handler;
-  }),
-  emit: mockEmit,
-  close: vi.fn()
-};
-
-vi.mock("socket.io-client", () => ({
-  io: vi.fn(() => mockSocket)
-}));
-
 describe("WebSocket Integration Tests", () => {
+  let mockSocket;
+  
   beforeEach(() => {
-    vi.clearAllMocks();
-    Object.keys(eventHandlers).forEach(key => delete eventHandlers[key]);
+    mockSocket = {
+      on: vi.fn(),
+      emit: vi.fn(),
+      close: vi.fn()
+    };
   });
 
   it("creates a new task via WebSocket", async () => {
     const user = userEvent.setup();
-    render(<KanbanBoard />);
-    
-    // Connect and sync
-    eventHandlers.connect();
-    eventHandlers["tasks:synced"]([]);
-    
-    await waitFor(() => {
-      expect(screen.getByText("To Do")).toBeInTheDocument();
-    });
+    render(<KanbanBoard socket={mockSocket} tasks={[]} loading={false} error={null} />);
     
     // Click add task button
     const addButtons = screen.getAllByText("+ Add Task");
@@ -49,175 +30,136 @@ describe("WebSocket Integration Tests", () => {
     const titleInput = screen.getByPlaceholderText("Enter task title");
     await user.type(titleInput, "New Integration Task");
     
-    const submitButton = screen.getByText("Create Task");
+    const submitButton = screen.getByRole("button", { name: /create task/i });
     await user.click(submitButton);
     
-    // Verify task:create was emitted
-    await waitFor(() => {
-      expect(mockEmit).toHaveBeenCalledWith("task:create", expect.objectContaining({
+    // Verify socket emit was called
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      "task:create",
+      expect.objectContaining({
         title: "New Integration Task",
         status: "todo"
-      }));
+      })
+    );
+  });
+
+  it("updates tasks when server sends sync event", async () => {
+    const initialTasks = [
+      { id: "1", title: "Task 1", status: "todo", priority: "High", category: "Bug", attachments: [] }
+    ];
+
+    const { rerender } = render(
+      <KanbanBoard socket={mockSocket} tasks={initialTasks} loading={false} error={null} />
+    );
+    
+    expect(screen.getByText("Task 1")).toBeInTheDocument();
+
+    // Simulate server sending updated tasks
+    const updatedTasks = [
+      { id: "1", title: "Task 1", status: "todo", priority: "High", category: "Bug", attachments: [] },
+      { id: "2", title: "Task 2", status: "inProgress", priority: "Medium", category: "Feature", attachments: [] }
+    ];
+
+    rerender(<KanbanBoard socket={mockSocket} tasks={updatedTasks} loading={false} error={null} />);
+    
+    await waitFor(() => {
+      expect(screen.getByText("Task 2")).toBeInTheDocument();
     });
   });
 
-  it("updates task via WebSocket", async () => {
+  it("emits delete event when task is deleted", async () => {
     const user = userEvent.setup();
-    render(<KanbanBoard />);
-    
-    eventHandlers.connect();
-    
-    const existingTask = {
-      id: "1",
-      title: "Existing Task",
-      description: "Old description",
-      status: "todo",
-      priority: "Medium",
-      category: "Feature",
-      attachments: []
-    };
-    
-    eventHandlers["tasks:synced"]([existingTask]);
-    
-    await waitFor(() => {
-      expect(screen.getByText("Existing Task")).toBeInTheDocument();
-    });
-    
-    // Click edit button
-    const editButton = screen.getByTitle("Edit task");
-    await user.click(editButton);
-    
-    await waitFor(() => {
-      expect(screen.getByText("Edit Task")).toBeInTheDocument();
-    });
-    
-    const titleInput = screen.getByDisplayValue("Existing Task");
-    await user.clear(titleInput);
-    await user.type(titleInput, "Updated Task");
-    
-    const submitButton = screen.getByText("Update Task");
-    await user.click(submitButton);
-    
-    await waitFor(() => {
-      expect(mockEmit).toHaveBeenCalledWith("task:update", expect.objectContaining({
-        id: "1",
-        title: "Updated Task"
-      }));
-    });
-  });
+    const tasks = [
+      { id: "1", title: "Task to Delete", status: "todo", priority: "High", category: "Bug", attachments: [] }
+    ];
 
-  it("deletes task via WebSocket", async () => {
-    const user = userEvent.setup();
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    
-    render(<KanbanBoard />);
-    
-    eventHandlers.connect();
-    
-    const task = {
-      id: "task-to-delete",
-      title: "Delete Me",
-      status: "todo",
-      priority: "Low",
-      category: "Bug",
-      description: "",
-      attachments: []
-    };
-    
-    eventHandlers["tasks:synced"]([task]);
-    
-    await waitFor(() => {
-      expect(screen.getByText("Delete Me")).toBeInTheDocument();
-    });
+    render(<KanbanBoard socket={mockSocket} tasks={tasks} loading={false} error={null} />);
     
     const deleteButton = screen.getByTitle("Delete task");
     await user.click(deleteButton);
     
+    // Wait for confirmation modal
     await waitFor(() => {
-      expect(mockEmit).toHaveBeenCalledWith("task:delete", "task-to-delete");
+      expect(screen.getByText(/Delete Task/i)).toBeInTheDocument();
     });
-    
-    confirmSpy.mockRestore();
+
+    //Click confirm delete (the button with exact text "Delete")
+    const confirmButton = screen.getByRole("button", { name: "Delete" });
+    await user.click(confirmButton);
+
+    // Verify socket emit was called
+    expect(mockSocket.emit).toHaveBeenCalledWith("task:delete", "1");
   });
 
-  it("receives real-time task updates", async () => {
-    render(<KanbanBoard />);
+  it("handles server errors gracefully", () => {
+    render(<KanbanBoard socket={mockSocket} tasks={[]} loading={false} error="Connection failed" />);
     
-    eventHandlers.connect();
-    eventHandlers["tasks:synced"]([]);
-    
-    await waitFor(() => {
-      expect(screen.getByText("To Do")).toBeInTheDocument();
-    });
-    
-    // Simulate another client creating a task
-    const newTask = {
-      id: "new-task",
-      title: "From Another Client",
-      status: "inProgress",
-      priority: "High",
-      category: "Feature",
-      description: "Real-time sync test",
-      attachments: []
-    };
-    
-    eventHandlers["tasks:synced"]([newTask]);
-    
-    await waitFor(() => {
-      expect(screen.getByText("From Another Client")).toBeInTheDocument();
-    });
+    expect(screen.getByText(/Connection failed/i)).toBeInTheDocument();
   });
 
-  it("handles server errors gracefully", async () => {
-    render(<KanbanBoard />);
-    
-    eventHandlers.connect();
-    
-    // Simulate server error
-    eventHandlers.error({ message: "Database connection failed" });
-    
-    await waitFor(() => {
-      expect(screen.getByText(/Database connection failed/i)).toBeInTheDocument();
-    });
-  });
-
-  it("re-syncs tasks on reconnection", () => {
-    render(<KanbanBoard />);
-    
-    // Initial connection
-    eventHandlers.connect();
-    expect(mockEmit).toHaveBeenCalledWith("sync:tasks");
-    
-    mockEmit.mockClear();
-    
-    // Simulate disconnect and reconnect
-    eventHandlers.disconnect();
-    eventHandlers.connect();
-    
-    expect(mockEmit).toHaveBeenCalledWith("sync:tasks");
-  });
-
-  it("filters tasks by status into correct columns", async () => {
-    render(<KanbanBoard />);
-    
-    eventHandlers.connect();
-    
+  it("displays correct task counts in columns", () => {
     const tasks = [
-      { id: "1", title: "Todo Task", status: "todo", priority: "Low", category: "Feature", description: "", attachments: [] },
-      { id: "2", title: "In Progress Task", status: "inProgress", priority: "Medium", category: "Bug", description: "", attachments: [] },
-      { id: "3", title: "Done Task", status: "done", priority: "High", category: "Enhancement", description: "", attachments: [] }
+      { id: "1", title: "Task 1", status: "todo", priority: "High", category: "Bug", attachments: [] },
+      { id: "2", title: "Task 2", status: "todo", priority: "Medium", category: "Feature", attachments: [] },
+      { id: "3", title: "Task 3", status: "inProgress", priority: "Low", category: "Enhancement", attachments: [] },
+      { id: "4", title: "Task 4", status: "done", priority: "High", category: "Bug", attachments: [] }
     ];
+
+    render(<KanbanBoard socket={mockSocket} tasks={tasks} loading={false} error={null} />);
     
-    eventHandlers["tasks:synced"](tasks);
+    const todoColumn = screen.getByText("To Do").closest('.kanban-column');
+    const inProgressColumn = screen.getByText("In Progress").closest('.kanban-column');
+    const doneColumn = screen.getByText("Done").closest('.kanban-column');
+
+    expect(todoColumn).toHaveTextContent("2");
+    expect(inProgressColumn).toHaveTextContent("1");
+    expect(doneColumn).toHaveTextContent("1");
+  });
+
+  it("filters tasks by status into correct columns", () => {
+    const tasks = [
+      { id: "1", title: "Todo Task", status: "todo", priority: "High", category: "Bug", attachments: [] },
+{ id: "2", title: "In Progress Task", status: "inProgress", priority: "Medium", category: "Feature", attachments: [] },
+      { id: "3", title: "Done Task", status: "done", priority: "Low", category: "Enhancement", attachments: [] }
+    ];
+
+    render(<KanbanBoard socket={mockSocket} tasks={tasks} loading={false} error={null} />);
     
+    expect(screen.getByText("Todo Task")).toBeInTheDocument();
+    expect(screen.getByText("In Progress Task")).toBeInTheDocument();
+    expect(screen.getByText("Done Task")).toBeInTheDocument();
+  });
+
+  it("emits update event when task is edited", async () => {
+    const user = userEvent.setup();
+    const tasks = [
+      { id: "1", title: "Original Title", description: "Original description", status: "todo", priority: "High", category: "Bug", attachments: [] }
+    ];
+
+    render(<KanbanBoard socket={mockSocket} tasks={tasks} loading={false} error={null} />);
+    
+    const editButton = screen.getByTitle("Edit task");
+    await user.click(editButton);
+    
+    // Wait for edit modal
     await waitFor(() => {
-      expect(screen.getByText("Todo Task")).toBeInTheDocument();
-      expect(screen.getByText("In Progress Task")).toBeInTheDocument();
-      expect(screen.getByText("Done Task")).toBeInTheDocument();
+      expect(screen.getByText("Edit Task")).toBeInTheDocument();
     });
-    
-    // Verify each task is in correct column by checking task count badges
-    const taskCounts = screen.getAllByText("1");
-    expect(taskCounts.length).toBe(3); // One task in each column
+
+    const titleInput = screen.getByDisplayValue("Original Title");
+    await user.clear(titleInput);
+    await user.type(titleInput, "Updated Title");
+
+    const saveButton = screen.getByRole("button", { name: /update task/i });
+    await user.click(saveButton);
+
+    // Verify socket emit was called
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      "task:update",
+      expect.objectContaining({
+        id: "1",
+        title: "Updated Title"
+      })
+    );
   });
 });

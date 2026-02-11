@@ -61,31 +61,14 @@ describe("TaskCard Component", () => {
     expect(mockOnEdit).toHaveBeenCalledWith(mockTask);
   });
 
-  it("shows confirmation and calls onDelete when delete button is clicked", () => {
-    // Mock window.confirm
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(true);
-    
+  it("calls onDelete with task object when delete button is clicked", () => {
     render(<TaskCard task={mockTask} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
     const deleteButton = screen.getByTitle("Delete task");
     fireEvent.click(deleteButton);
     
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockOnDelete).toHaveBeenCalledWith("1");
-    
-    confirmSpy.mockRestore();
-  });
-
-  it("does not call onDelete when user cancels confirmation", () => {
-    const confirmSpy = vi.spyOn(window, "confirm").mockReturnValue(false);
-    
-    render(<TaskCard task={mockTask} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
-    const deleteButton = screen.getByTitle("Delete task");
-    fireEvent.click(deleteButton);
-    
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(mockOnDelete).not.toHaveBeenCalled();
-    
-    confirmSpy.mockRestore();
+    // TaskCard now passes the entire task object to onDelete
+    // The confirmation modal is handled at the KanbanBoard level
+    expect(mockOnDelete).toHaveBeenCalledWith(mockTask);
   });
 
   it("renders without description", () => {
