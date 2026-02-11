@@ -10,8 +10,12 @@ const columnTitles = {
 };
 
 function Column({ status, tasks, onAddTask, onEditTask, onDeleteTask }) {
-  const { setNodeRef } = useDroppable({
-    id: status
+  const { setNodeRef, isOver } = useDroppable({
+    id: status,
+    data: {
+      type: 'column',
+      accepts: ['task']
+    }
   });
 
   const taskIds = tasks.map(task => task.id);
@@ -26,7 +30,11 @@ function Column({ status, tasks, onAddTask, onEditTask, onDeleteTask }) {
         <span className="task-count">{tasks.length}</span>
       </div>
 
-      <div className="column-tasks" ref={setNodeRef}>
+      <div 
+        className={`column-tasks ${isOver ? 'drag-over' : ''}`} 
+        ref={setNodeRef}
+        style={{ minHeight: '300px' }}
+      >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {tasks.length === 0 ? (
             <div className="empty-state">

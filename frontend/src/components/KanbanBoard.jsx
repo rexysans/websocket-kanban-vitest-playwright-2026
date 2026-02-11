@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { DndContext, DragOverlay, closestCorners, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import React, { useState, useEffect } from 'react';
+import { io } from 'socket.io-client';
+import { DndContext, DragOverlay, rectIntersection, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import Column from './Column';
 import TaskForm from './TaskForm';
 import TaskCard from './TaskCard';
@@ -133,7 +134,7 @@ function KanbanBoard({ socket, tasks, loading, error }) {
 
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={rectIntersection}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >

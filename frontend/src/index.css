@@ -189,6 +189,12 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   padding-right: var(--spacing-xs);
+  transition: background-color 0.2s ease;
+}
+
+.column-tasks.drag-over {
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: var(--border-radius);
 }
 
 .add-task-btn {
