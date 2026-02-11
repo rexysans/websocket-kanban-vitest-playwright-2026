@@ -1,0 +1,64 @@
+# ==============================
+# Node / JS dependencies
+# ==============================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==============================
+# Environment variables / secrets
+# ==============================
+.env
+.env.*
+!.env.example
+
+# ==============================
+# Build outputs
+# ==============================
+dist/
+build/
+coverage/
+.vite/
+.cache/
+
+# ==============================
+# Testing artifacts
+# ==============================
+playwright-report/
+test-results/
+.vitest/
+
+# ==============================
+# Logs
+# ==============================
+logs/
+*.log
+
+# ==============================
+# OS junk
+# ==============================
+.DS_Store
+Thumbs.db
+
+# ==============================
+# Editor / IDE junk
+# ==============================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+# Temporary files
+# ==============================
+tmp/
+temp/
+*.tmp
+
+# ==============================
+# Misc
+# ==============================
+*.pid
+*.seed
