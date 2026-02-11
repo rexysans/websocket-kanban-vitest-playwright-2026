@@ -11,7 +11,7 @@ app.use(express.json());
 const server = http.createServer(app);
 const io = new Server(server, { 
   cors: { 
-    origin: "*",
+    origin: process.env.CORS_ORIGIN || "http://localhost:3000",
     methods: ["GET", "POST"]
   } 
 });
@@ -199,10 +199,11 @@ app.post('/api/tasks/reset', (req, res) => {
   res.json({ message: 'Tasks reset successfully' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📡 WebSocket ready for connections`);
+  console.log(`🌍 CORS origin: ${process.env.CORS_ORIGIN || 'http://localhost:3000'}`);
 });
 
 module.exports = { app, server, io };

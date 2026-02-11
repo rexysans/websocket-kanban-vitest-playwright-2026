@@ -10,6 +10,38 @@ The goal is to assess proficiency in:
 ✅ **Vitest + React Testing Library** (for unit & integration testing)  
 ✅ **Playwright** (for end-to-end testing)
 
+## 🚀 Quick Start
+
+### Local Development
+
+```bash
+# Backend
+cd backend
+npm install
+cp .env.example .env
+npm start
+
+# Frontend (in another terminal)
+cd frontend
+npm install
+cp .env.example .env
+npm run dev
+```
+
+Open http://localhost:3000
+
+### Production Deployment (Vercel + Render)
+
+**Quick Deploy** (5 minutes):
+```bash
+# 1. Deploy backend to Render (via dashboard)
+# 2. Deploy frontend to Vercel
+cd frontend
+vercel --prod
+```
+
+See [DEPLOY.md](./DEPLOY.md) for full step-by-step instructions.
+
 ---
 
 ## 📂 Project Structure
@@ -177,6 +209,21 @@ Additional UI Features:
 - [Frontend Testing Guide](https://www.netguru.com/blog/front-end-testing)
 - [Vitest Docs](https://vitest.dev/)
 - [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/)
+
+🎭 **Playwright (E2E Testing)**
+
+- [Playwright Docs](https://playwright.dev/)
+
+---
+
+## 🚀 Next Steps for Candidates
+
+🎯 Implement **WebSocket logic** in the Kanban board  
+🎯 Add **state management** for tasks  
+🎯 Write **unit, integration, and E2E tests**  
+🎯 Deploy and verify real-time updates
+
+🛠 **Final Tip:** Pay attention to **code quality, real-time interactions, and testing coverage**. Good luck! 🚀
 
 🎭 **Playwright (E2E Testing)**
 

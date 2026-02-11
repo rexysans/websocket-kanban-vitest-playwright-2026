@@ -3,7 +3,7 @@ import { io } from "socket.io-client";
 import KanbanBoard from "./components/KanbanBoard";
 import TaskProgressChart from "./components/TaskProgressChart";
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 function App() {
   const [tasks, setTasks] = useState([]);
